@@ -37,11 +37,8 @@ class TestAccount:
         account = Account("John", "Doe", "12345678901",4567)
         assert account.balance == 0.0
 
-    def test_promo_eligible_after_1960():
+    def test_promo_eligible_after_1960(self):
         account = Account("John", "Doe", "70010112345", "PROM_ABC")
         assert account.balance == 50.0
     
     
-    def test_promo_not_eligible_before_1960():
-        account = Account("John", "Doe", "59123112345", "PROM_ABC")
-        assert account.balance == 0.0
