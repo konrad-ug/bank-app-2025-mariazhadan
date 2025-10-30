@@ -20,3 +20,28 @@ class TestAccount:
     def test_pesel_long(self):
         account = Account("John", "Doe", None)
         assert account.pesel == "Invalid"
+
+    def test_promo_valid(self): 
+        account = Account("John", "Doe", "12345678901","PROM_ABC")
+        assert account.balance == 50.0
+    
+    def test_promo_invalid_prefix(self):
+        account = Account("John", "Doe", "12345678901","PRtM_ABC")
+        assert account.balance == 0.0
+
+    def test_promo_short(self):
+        account = Account("John", "Doe", "12345678901","PRM_C")
+        assert account.balance == 0.0
+    
+    def test_promo_not_str(self):
+        account = Account("John", "Doe", "12345678901",4567)
+        assert account.balance == 0.0
+
+    def test_promo_eligible_after_1960():
+        account = Account("John", "Doe", "70010112345", "PROM_ABC")
+        assert account.balance == 50.0
+    
+    
+    def test_promo_not_eligible_before_1960():
+        account = Account("John", "Doe", "59123112345", "PROM_ABC")
+        assert account.balance == 0.0
