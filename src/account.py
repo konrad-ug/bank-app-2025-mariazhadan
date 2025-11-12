@@ -48,3 +48,26 @@ class Account:
     def is_eligible_for_promo(self, pesel):
         year = self.extract_birth_year(pesel)
         return year is not None and year > 1960
+
+    def receive_transfer(self, amount):
+        if isinstance(amount, (int, float)) and amount > 0:
+            self.balance += float(amount)
+            return True
+        return False
+    def send_transfer(self, amount):
+        if isinstance(amount, (int, float)) and 0 < amount <= self.balance:
+            self.balance -= float(amount)
+            return True
+        return False
+
+    def get_express_fee(self):
+        return 1.0
+
+    def send_express_transfer(self, amount):
+        if isinstance(amount, (int, float)) and amount > 0:
+            express_fee = self.get_express_fee()
+            total_cost = float(amount) + express_fee
+            if self.balance >= amount - express_fee:
+                self.balance -= total_cost
+                return True
+        return False
