@@ -40,3 +40,39 @@ class TestCompanyAccount:
         result = account.send_transfer(500.0)
         assert result == False
         assert account.balance == 100.0
+
+    def test_create_invalid_nip_letters(self):
+        acc = CompanyAccount("Test Corp", "123ABC7890")
+        assert acc.nip == "Invalid"
+
+    def test_receive_transfer_positive_amount(self):
+        acc = CompanyAccount("Receiver Co", "1234567890")
+        assert acc.receive_transfer(500.0) is True
+        assert acc.balance == 500.0
+
+    def test_receive_transfer_negative_amount(self):
+        acc = CompanyAccount("Receiver Co", "1234567890")
+        assert acc.receive_transfer(-50) is False
+        assert acc.balance == 0.0
+
+    def test_receive_transfer_invalid_type(self):
+        acc = CompanyAccount("Receiver Co", "1234567890")
+        assert acc.receive_transfer("abc") is False
+        assert acc.balance == 0.0
+    
+    def test_send_transfer_negative_amount(self):
+        acc = CompanyAccount("Sender Co", "1234567890")
+        acc.receive_transfer(100.0)
+        assert acc.send_transfer(-50) is False
+        assert acc.balance == 100.0
+    
+    def test_send_transfer_invalid_type(self):
+        acc = CompanyAccount("Sender Co", "1234567890")
+        acc.receive_transfer(100.0)
+        assert acc.send_transfer("abc") is False
+        assert acc.balance == 100.0
+    
+    def test_company_get_express_fee(self):
+        acc = CompanyAccount("Fee Co", "1234567890")
+        fee = acc.get_express_fee()
+        assert fee == 5.0
