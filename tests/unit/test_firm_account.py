@@ -1,4 +1,5 @@
 from src.account_firm import CompanyAccount
+import pytest
 
 
 class TestCompanyAccount:
@@ -76,3 +77,36 @@ class TestCompanyAccount:
         acc = CompanyAccount("Fee Co", "1234567890")
         fee = acc.get_express_fee()
         assert fee == 5.0
+
+
+@pytest.fixture
+def firm_account():
+    acc = CompanyAccount()
+    acc.balance = 5000
+    acc.history = [1000, -1775, 2000]  
+    return acc
+
+def test_take_loan_success(firm_account):
+    prev_balance = firm_account.balance
+    assert firm_account.take_loan(2000) is True
+    assert firm_account.balance == prev_balance + 2000
+
+def test_take_loan_no_zus():
+    acc = CompanyAccount()
+    acc.balance = 5000
+    acc.history = [1000, -1000, 2000]
+    prev_balance = acc.balance
+    assert acc.take_loan(2000) is False
+    assert acc.balance == prev_balance
+
+def test_take_loan_balance_too_low(firm_account):
+    firm_account.balance = 3000  # 2*2000 > 3000
+    prev_balance = firm_account.balance
+    assert firm_account.take_loan(2000) is False
+    assert firm_account.balance == prev_balance
+
+@pytest.mark.parametrize("bad_amount", [0, -100, "abc", None])
+def test_take_loan_invalid_amount(firm_account, bad_amount):
+    prev_balance = firm_account.balance
+    assert firm_account.take_loan(bad_amount) is False
+    assert firm_account.balance == prev_balance
