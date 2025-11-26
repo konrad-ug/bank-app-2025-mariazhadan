@@ -105,3 +105,26 @@ class TestAccount:
         acc = Account("A", "B", "00130112345")  
         assert acc.extract_birth_year("00130112345") is None
 
+    def test_history_receive_transfer(self):
+        acc = Account("A", "B", "12345678901")
+        acc.receive_transfer(500)
+        assert acc.history == [500.0]
+
+    def test_history_send_transfer(self):
+        acc = Account("A", "B", "12345678901")
+        acc.balance = 1000
+        acc.send_transfer(300)
+        assert acc.history == [-300.0]
+
+    def test_history_send_express_transfer(self):
+        acc = Account("A", "B", "12345678901")
+        acc.balance = 1000
+        acc.send_express_transfer(300)
+        assert acc.history == [-300.0, -1.0]
+
+    def test_history_multiple_operations(self):
+        acc = Account("A", "B", "12345678901")
+        acc.receive_transfer(500)
+        acc.send_express_transfer(300)
+        assert acc.history == [500.0, -300.0, -1.0]
+
