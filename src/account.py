@@ -67,7 +67,7 @@ class Account:
         if isinstance(amount, (int, float)) and amount > 0:
             express_fee = self.get_express_fee()
             total_cost = float(amount) + express_fee
-            if self.balance >= amount - express_fee:
+            if self.balance >= total_cost:
                 self.balance -= total_cost
                 return True
         return False
