@@ -78,20 +78,26 @@ class Account:
                 return True
         return False
 
+    def _last_three_positive(self):
+        if len(self.history) < 3:
+            return False
+        return all(x > 0 for x in self.history[-3:])
+
+    def _last_five_sum_gt_amount(self, amount):
+        if len(self.history) < 5:
+            return False
+        return sum(self.history[-5:]) > float(amount)
+
     def submit_for_loan(self, amount):
         if not isinstance(amount, (int, float)) or amount <= 0:
             return False
 
-        if len(self.history) >= 3:
-            last_three = self.history[-3:]
-            if all(x > 0 for x in last_three):
-                self.balance += float(amount)
-                return True
+        if self._last_three_positive():
+            self.balance += float(amount)
+            return True
 
-        if len(self.history) >= 5:
-            last_five = self.history[-5:]
-            if sum(last_five) > float(amount):
-                self.balance += float(amount)
-                return True
+        if self._last_five_sum_gt_amount(amount):
+            self.balance += float(amount)
+            return True
 
         return False
