@@ -11,8 +11,15 @@ class AccountsRegistry:
                 return account
         return None
 
-    def get_all_accounts(self):
-        return self.accounts
+    def all_accounts(self):
+        return list(self.accounts)
 
     def count(self):
         return len(self.accounts)
+
+    def remove_by_pesel(self, pesel: str) -> bool:
+        acc = self.find_by_pesel(pesel)
+        if not acc:
+            return False
+        self.accounts.remove(acc)
+        return True
