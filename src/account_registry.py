@@ -3,7 +3,10 @@ class AccountsRegistry:
         self.accounts = []
 
     def add_account(self, account):
+        if self.find_by_pesel(account.pesel):
+            return False
         self.accounts.append(account)
+        return True
 
     def find_by_pesel(self, pesel):
         for account in self.accounts:

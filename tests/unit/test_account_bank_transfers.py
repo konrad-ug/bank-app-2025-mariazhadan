@@ -65,3 +65,21 @@ class TestAccount_BankTransfers:
         account.send_transfer(5)
         assert account._last_three_positive() is False
 
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (10, 10.0),
+        (3.14, 3.14),
+        ("2.5", 2.5),
+        ("0", 0.0),
+        ("-1", -1.0),
+    ],
+)
+def test_coerce_amount_valid(value, expected):
+    acc = Account("A", "B", "12345678901")
+    assert acc._coerce_amount(value) == expected
+
+@pytest.mark.parametrize("value", ["abc", "12a", None, [], {}, object()])
+def test_coerce_amount_invalid(value):
+    acc = Account("A", "B", "12345678901")
+    assert acc._coerce_amount(value) is None

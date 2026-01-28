@@ -69,3 +69,11 @@ def test_remove_by_pesel_twice(registry):
     reg, acc1, _ = registry
     assert reg.remove_by_pesel(acc1.pesel) is True
     assert reg.remove_by_pesel(acc1.pesel) is False
+
+def test_registry_rejects_duplicate_pesel(registry):
+    reg = AccountsRegistry()
+    acc1 = Account("Jan", "Kowalski", "90010112345")
+    assert reg.add_account(acc1) is True
+    assert reg.add_account(acc1) is False
+    assert reg.count() == 1
+
