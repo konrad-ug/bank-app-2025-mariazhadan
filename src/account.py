@@ -51,32 +51,44 @@ class Account:
         return year is not None and year > 1960
 
     def receive_transfer(self, amount):
-        if isinstance(amount, (int, float)) and amount > 0:
-            self.balance += float(amount)
-            self.history.append(float(amount))
-            return True
-        return False
+        amount = self._coerce_amount(amount)
+        if amount is None or amount <= 0:
+            return False
+        self.balance += amount
+        self.history.append(amount)
+        return True
 
     def send_transfer(self, amount):
-        if isinstance(amount, (int, float)) and 0 < amount <= self.balance:
-            self.balance -= float(amount)
-            self.history.append(-float(amount))
-            return True
-        return False
+        amount = self._coerce_amount(amount)
+        if amount is None or amount <= 0 or amount > self.balance:
+            return False
+        self.balance -= amount
+        self.history.append(-amount)
+        return True
 
     def get_express_fee(self):
         return 1.0
 
     def send_express_transfer(self, amount):
-        if isinstance(amount, (int, float)) and amount > 0:
-            express_fee = self.get_express_fee()
-            total_cost = float(amount) + express_fee
-            if self.balance >= total_cost:
-                self.balance -= total_cost
-                self.history.append(-float(amount))
-                self.history.append(-float(express_fee))
-                return True
-        return False
+        amount = self._coerce_amount(amount)
+        if amount is None or amount <= 0 or amount > self.balance:
+            return False
+        express_fee = self.get_express_fee()
+        self.balance -= amount
+        self.history.append(-amount)
+        self.balance -= float(express_fee)
+        self.history.append(-float(express_fee))
+        return True
+
+    def _coerce_amount(self, amount):
+        if isinstance(amount, (int, float)):
+            return float(amount)
+        if isinstance(amount, str):
+            try:
+                return float(amount)
+            except ValueError:
+                return None
+        return None
 
     def _last_three_positive(self):
         if len(self.history) < 3:
