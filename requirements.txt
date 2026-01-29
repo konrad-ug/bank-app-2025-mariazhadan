@@ -5,3 +5,5 @@ requests>=2.31
 pytest-mock
 Faker
 behave
+pymongo
+mongomock
