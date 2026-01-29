@@ -1,5 +1,6 @@
 import pytest
 from src.account import Account
+from src.business_account import BusinessAccount
 from src.account_registry import AccountsRegistry
 
 @pytest.fixture
@@ -77,3 +78,9 @@ def test_registry_rejects_duplicate_pesel(registry):
     assert reg.add_account(acc1) is False
     assert reg.count() == 1
 
+def test_rejects_non_personal_accounts(registry, monkeypatch):
+    reg, _, _ = registry
+    monkeypatch.setattr(BusinessAccount, "verify_nip_with_mf", lambda *_: True)
+    ba = BusinessAccount("FortunateSon", "1234567890")
+    with pytest.raises(TypeError):
+        reg.add_account(ba)

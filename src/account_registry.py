@@ -3,6 +3,8 @@ class AccountsRegistry:
         self.accounts = []
 
     def add_account(self, account):
+        if not hasattr(account, "pesel"):
+            raise TypeError("Only personal accounts can be added")
         if self.find_by_pesel(account.pesel):
             return False
         self.accounts.append(account)

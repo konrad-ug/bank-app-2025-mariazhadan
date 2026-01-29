@@ -1,12 +1,19 @@
+import os
+import datetime as dt
+import requests
 from src.account import Account
 
 
-class CompanyAccount(Account):
+class BusinessAccount(Account):
     def __init__(self, company_name=None, nip=None):
         self.company_name = company_name
         self.nip = nip if self.nip_is_valid(nip) else "Invalid"
         self.balance = 0.0
         self.history = []
+        if isinstance(self.nip, str) and len(self.nip) == 10:
+            ok = self.verify_nip_with_mf(self.nip)
+            if not ok:
+                raise ValueError("Company not registered!!")
 
     def nip_is_valid(self, nip):
         return nip is not None and len(nip) == 10 and nip.isdigit()
@@ -37,3 +44,23 @@ class CompanyAccount(Account):
             return False
         self.balance += float(amount)
         return True
+    
+    def verify_nip_with_mf(self, nip: str) -> bool:
+        base = os.getenv("BANK_APP_MF_URL", "https://wl-test.mf.gov.pl").rstrip("/")
+        date = dt.date.today().isoformat()  
+        url = f"{base}/api/search/nip/{nip}?date={date}"
+        try:
+            resp = requests.get(url, timeout=5)
+            try:
+                data = resp.json()
+            except Exception:
+                data = {"raw": resp.text}
+            print(f"[MF] GET {url} -> {resp.status_code} {data}")
+            if resp.status_code != 200:
+                return False
+            result = (data.get("result") or {})
+            subject = (result.get("subject") or {})
+            return subject.get("statusVat") == "Czynny"
+        except Exception as e:
+            print(f"[MF] request error: {e}")
+            return False
