@@ -2,9 +2,11 @@ import os
 import datetime as dt
 import requests
 from src.account import Account
-
+from datetime import date
+from smtp.smtp import SMTPClient
 
 class BusinessAccount(Account):
+    history_email_text_template = "Company account history: {}"
     def __init__(self, company_name=None, nip=None):
         self.company_name = company_name
         self.nip = nip if self.nip_is_valid(nip) else "Invalid"
@@ -64,3 +66,9 @@ class BusinessAccount(Account):
         except Exception as e:
             print(f"[MF] request error: {e}")
             return False
+
+    def send_history_via_email(self, email_address: str) -> bool:
+        today_date = date.today().strftime("%Y-%m-%d")
+        subject = "Account Transfer History "+ today_date
+        text = self.history_email_text_template.format(self.history)
+        return SMTPClient.send(subject, text, email_address)
