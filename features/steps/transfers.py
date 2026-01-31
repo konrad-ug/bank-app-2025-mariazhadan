@@ -1,90 +1,120 @@
-from behave import given, when, then, step
+from behave import given, when, then
 import requests
 
-URL = "http://127.0.0.1:5000"
+BASE_URL = "http://127.0.0.1:5000"
+ACCOUNTS_URL = f"{BASE_URL}/api/accounts"
+TIMEOUT = 5
 
-def _ensure_empty_registry():
-    r = requests.get(f"{URL}/api/accounts", timeout=5)
-    if r.ok and r.headers.get("Content-Type", "").startswith("application/json"):
-        for acc in r.json():
-            requests.delete(f"{URL}/api/accounts/{acc['pesel']}", timeout=5)
 
-def _create_account_if_missing(pesel, name="BDD", surname="User"):
+def _json_ok(response):
+    return response.ok and response.headers.get("Content-Type", "").startswith("application/json")
+
+
+def _clear_registry():
+    response = requests.get(ACCOUNTS_URL, timeout=TIMEOUT)
+    if _json_ok(response):
+        for account in response.json():
+            requests.delete(f"{ACCOUNTS_URL}/{account['pesel']}", timeout=TIMEOUT)
+
+
+def _ensure_account(pesel, name="BDD", surname="User"):
     payload = {"name": name, "surname": surname, "pesel": pesel}
-    r = requests.post(f"{URL}/api/accounts", json=payload, timeout=5)
-    assert r.status_code in (201, 409), f"Create failed: {r.status_code}"
+    response = requests.post(ACCOUNTS_URL, json=payload, timeout=TIMEOUT)
+    assert response.status_code in (201, 409), f"Create failed: {response.status_code}"
 
-def _get_balance(pesel) -> float:
-    r = requests.get(f"{URL}/api/accounts/{pesel}", timeout=5)
-    assert r.status_code == 200
-    return float(r.json()["balance"])
 
-def _set_balance(pesel, target):
-    _ensure_empty_registry()
-    _create_account_if_missing(pesel)
+def _balance_for(pesel) -> float:
+    response = requests.get(f"{ACCOUNTS_URL}/{pesel}", timeout=TIMEOUT)
+    assert response.status_code == 200
+    return float(response.json()["balance"])
+
+
+def _seed_balance(pesel, target):
+    _clear_registry()
+    _ensure_account(pesel)
     if float(target) > 0:
-        r = requests.post(f"{URL}/api/accounts/{pesel}/transfer",
-                          json={"type": "incoming", "amount": float(target)},
-                          timeout=5)
-        assert r.status_code == 200, f"Failed to seed balance: {r.status_code}"
+        response = requests.post(
+            f"{ACCOUNTS_URL}/{pesel}/transfer",
+            json={"type": "incoming", "amount": float(target)},
+            timeout=TIMEOUT,
+        )
+        assert response.status_code == 200, f"Failed to seed balance: {response.status_code}"
 
-@given('Użytkownik posiada konto bankowe o numerze PESEL {pesel}')
-def step_have_account(context, pesel):
-    _create_account_if_missing(pesel)
+
+@given("a user has a bank account with PESEL {pesel}")
+def user_has_account(context, pesel):
+    _ensure_account(pesel)
     context.pesel = pesel
 
-@given('Saldo użytkownika na koncie wynosi {amount:g} zł')
-def step_balance_is(context, amount):
-    assert hasattr(context, "pesel"), "Brak peselu w kontekście"
-    _set_balance(context.pesel, amount)
 
-@when('Użytkownik otrzymuje przelew przychodzący w wysokości {amount:g} zł')
-def step_incoming(context, amount):
-    r = requests.post(f"{URL}/api/accounts/{context.pesel}/transfer",
-                      json={"type": "incoming", "amount": float(amount)},
-                      timeout=5)
-    context.last_response = r
+@given("the account balance is {amount:g} PLN")
+def account_balance_is(context, amount):
+    assert hasattr(context, "pesel"), "PESEL is missing from context"
+    _seed_balance(context.pesel, amount)
 
-@when('Użytkownik zleca przelew wychodzący w wysokości {amount:g} zł')
-def step_outgoing(context, amount):
-    r = requests.post(f"{URL}/api/accounts/{context.pesel}/transfer",
-                      json={"type": "outgoing", "amount": float(amount)},
-                      timeout=5)
-    context.last_response = r
 
-@when('Użytkownik zleca przelew ekspresowy w wysokości {amount:g} zł')
-def step_express(context, amount):
-    r = requests.post(f"{URL}/api/accounts/{context.pesel}/transfer",
-                      json={"type": "express", "amount": float(amount)},
-                      timeout=5)
-    context.last_response = r
+@when("the user receives an incoming transfer of {amount:g} PLN")
+def incoming_transfer(context, amount):
+    response = requests.post(
+        f"{ACCOUNTS_URL}/{context.pesel}/transfer",
+        json={"type": "incoming", "amount": float(amount)},
+        timeout=TIMEOUT,
+    )
+    context.last_response = response
 
-@when('Użytkownik zleca przelew o niepoprawnym typie {kind}')
-def step_wrong_kind(context, kind):
-    r = requests.post(f"{URL}/api/accounts/{context.pesel}/transfer",
-                      json={"type": kind, "amount": 1},
-                      timeout=5)
-    context.last_response = r
+
+@when("the user submits an outgoing transfer of {amount:g} PLN")
+def outgoing_transfer(context, amount):
+    response = requests.post(
+        f"{ACCOUNTS_URL}/{context.pesel}/transfer",
+        json={"type": "outgoing", "amount": float(amount)},
+        timeout=TIMEOUT,
+    )
+    context.last_response = response
+
+
+@when("the user submits an express transfer of {amount:g} PLN")
+def express_transfer(context, amount):
+    response = requests.post(
+        f"{ACCOUNTS_URL}/{context.pesel}/transfer",
+        json={"type": "express", "amount": float(amount)},
+        timeout=TIMEOUT,
+    )
+    context.last_response = response
+
+
+@when("the user submits a transfer with invalid type {kind}")
+def invalid_transfer_type(context, kind):
+    response = requests.post(
+        f"{ACCOUNTS_URL}/{context.pesel}/transfer",
+        json={"type": kind, "amount": 1},
+        timeout=TIMEOUT,
+    )
+    context.last_response = response
     context.kind = kind
 
-@then('System powinien zwrócić komunikat: Zlecenie przyjeto do realizacji')
-def step_msg_accepted(context):
+
+@then("the system should respond with: Transfer accepted")
+def response_transfer_accepted(context):
     assert context.last_response.status_code == 200
 
-@then('System powinien zwrócić komunikat: Niewystarczające srodki na koncie')
-def step_msg_insufficient(context):
+
+@then("the system should respond with: Insufficient funds")
+def response_insufficient_funds(context):
     assert context.last_response.status_code == 422
 
-@then('System powinien zwrócić komunikat: Nieznany typ transferu: {kind}')
-def step_msg_unknown_kind(context, kind):
+
+@then("the system should respond with: Unknown transfer type {kind}")
+def response_unknown_type(context, kind):
     assert context.last_response.status_code == 400
     try:
-        msg = context.last_response.json().get("message", "").lower()
-        assert "type" in msg or "unknown" in msg or "doesn`t" in msg
+        message = context.last_response.json().get("message", "").lower()
+        assert "type" in message or "unknown" in message or "doesn`t" in message
     except Exception:
         pass
 
-@then('Saldo użytkownika na koncie powinno wynosić {expected:g} zł')
-def step_balance_equals(context, expected):
-    bal = _get_balance(context.pesel)
-    assert abs(bal - float(expected)) < 1e-6, f"Expected {expected}, got {bal}"
+
+@then("the account balance should be {expected:g} PLN")
+def account_balance_should_be(context, expected):
+    balance = _balance_for(context.pesel)
+    assert abs(balance - float(expected)) < 1e-6, f"Expected {expected}, got {balance}"

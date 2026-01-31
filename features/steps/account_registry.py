@@ -1,92 +1,112 @@
-from behave import given, when, then, step
+from behave import when, then, step
 import requests
-URL = "http://127.0.0.1:5000"
 
-@step('I create an account using name: "{name}", last name: "{last_name}", pesel: "{pesel}"')
-def create_account(context, name, last_name, pesel):
-    json_body = { "name": f"{name}",
-    "surname": f"{last_name}",
-    "pesel": pesel
-    }
-    create_resp = requests.post(URL + "/api/accounts", json = json_body)
+BASE_URL = "http://127.0.0.1:5000"
+ACCOUNTS_URL = f"{BASE_URL}/api/accounts"
+
+
+def _list_accounts():
+    response = requests.get(ACCOUNTS_URL)
+    return response.json()
+
+
+def _delete_account(pesel):
+    return requests.delete(f"{ACCOUNTS_URL}/{pesel}")
+
+
+def _get_account(pesel):
+    return requests.get(f"{ACCOUNTS_URL}/{pesel}")
+
+
+def _create_account(name, surname, pesel):
+    payload = {"name": name, "surname": surname, "pesel": pesel}
+    return requests.post(ACCOUNTS_URL, json=payload)
+
+
+@step("the account registry is empty")
+def clear_account_registry(context):
+    for account in _list_accounts():
+        _delete_account(account["pesel"])
+
+
+@step('I register an account with name "{name}", surname "{surname}", PESEL "{pesel}"')
+def register_account(context, name, surname, pesel):
+    create_resp = _create_account(name, surname, pesel)
     assert create_resp.status_code == 201
 
-@when('I create an account with duplicate pesel: "{pesel}"')
-def create_duplicate_account(context, pesel):
-    json_body = { "name": "dummy", "surname": "dummy", "pesel": pesel }
-    context.create_resp = requests.post(URL + "/api/accounts", json = json_body)
 
-@then('Duplicate account creation is rejected')
-def creation_rejected(context):
+@when('I attempt to register another account with the same PESEL "{pesel}"')
+def register_duplicate_account(context, pesel):
+    context.create_resp = _create_account("dummy", "dummy", pesel)
+
+
+@then("duplicate account creation is rejected")
+def duplicate_creation_rejected(context):
     assert context.create_resp.status_code == 409
 
-@step('Account registry is empty')
-@step('Acoount registry is empty')
-def clear_account_registry_typo(context):
-    response = requests.get(URL + "/api/accounts")
-    accounts = response.json()
 
-    for account in accounts:
-        pesel = account["pesel"]
-        requests.delete(URL + f"/api/accounts/{pesel}")
-
-@step('Number of accounts in registry equals: "{count}"')
-def is_account_count_equal_to(context, count):
-    response = requests.get(URL + "/api/accounts")
-    accounts = response.json()
+@step("the registry contains {count:d} account")
+@step("the registry contains {count:d} accounts")
+def registry_contains_count(context, count):
+    accounts = _list_accounts()
     assert len(accounts) == int(count)
 
-@step('Account with pesel "{pesel}" exists in registry')
-def check_account_with_pesel_exists(context, pesel):
-    response = requests.get(URL + f"/api/accounts/{pesel}")
+
+@step('an account with PESEL "{pesel}" exists')
+def account_with_pesel_exists(context, pesel):
+    response = _get_account(pesel)
     assert response.status_code == 200
 
-@step('Account with pesel "{pesel}" does not exist in registry')
-def check_account_with_pesel_does_not_exist(context, pesel):
-    response = requests.get(URL + f"/api/accounts/{pesel}")
+
+@step('an account with PESEL "{pesel}" does not exist')
+def account_with_pesel_missing(context, pesel):
+    response = _get_account(pesel)
     assert response.status_code == 404
 
-@when('I delete account with pesel: "{pesel}"')
+
+@when('I delete the account with PESEL "{pesel}"')
 def delete_account(context, pesel):
-    response = requests.delete(URL + f"/api/accounts/{pesel}")
+    response = _delete_account(pesel)
     assert response.status_code == 200
 
-@when('I update "{field}" of account with pesel: "{pesel}" to "{value}"')
-def update_field(context, field, pesel, value):
+
+@when('I change the "{field}" of the account with PESEL "{pesel}" to "{value}"')
+def change_account_field(context, field, pesel, value):
     if field not in ["name", "surname"]:
         raise ValueError(f"Invalid field: {field}. Must be 'name' or 'surname'.")
-    json_body = { field: value }
-    response = requests.patch(URL + f"/api/accounts/{pesel}", json = json_body)
+    response = requests.patch(f"{ACCOUNTS_URL}/{pesel}", json={field: value})
     assert response.status_code == 200
 
-@then('Account with pesel "{pesel}" has "{field}" equal to "{value}"')
-def field_equals_to(context, pesel, field, value):
-    response = requests.get(URL + f"/api/accounts/{pesel}")
+
+@then('the account with PESEL "{pesel}" has "{field}" set to "{value}"')
+def account_field_equals(context, pesel, field, value):
+    response = _get_account(pesel)
     assert response.status_code == 200
     account = response.json()
     assert account[field] == value
 
-@when('I make "{transfer_type}" transfer of "{amount}" to account with pesel: "{pesel}"')
-@step('I make "{transfer_type}" transfer of "{amount}" to account with pesel: "{pesel}"')
+
+@when('I make an {transfer_type} transfer of {amount:g} to the account with PESEL "{pesel}"')
+@step('I make an {transfer_type} transfer of {amount:g} to the account with PESEL "{pesel}"')
 def make_transfer(context, transfer_type, amount, pesel):
-    json_body = {
-        "type": transfer_type,
-        "amount": float(amount)
-    }
-    response = requests.post(URL + f"/api/accounts/{pesel}/transfer", json=json_body)
+    payload = {"type": transfer_type, "amount": float(amount)}
+    response = requests.post(f"{ACCOUNTS_URL}/{pesel}/transfer", json=payload)
     context.transfer_response = response
 
-@then('Transfer is accepted')
+
+@then("the transfer is accepted")
 def transfer_accepted(context):
     assert context.transfer_response.status_code == 200
 
-@then('Transfer is rejected')
+
+@then("the transfer is rejected")
 def transfer_rejected(context):
     assert context.transfer_response.status_code == 422
 
-@then('Account with pesel "{pesel}" has balance of "{balance}"')
-def check_balance(context, pesel, balance):
-    response = requests.get(URL + f"/api/accounts/{pesel}")
+
+@then('the account with PESEL "{pesel}" has balance {balance:g}')
+def account_balance_equals(context, pesel, balance):
+    response = _get_account(pesel)
     assert response.status_code == 200
     account = response.json()
     assert account["balance"] == float(balance)
